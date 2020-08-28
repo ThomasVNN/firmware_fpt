@@ -131,7 +131,7 @@ border=0>
           <TD class=tabdata> <DIV align=right><font color="#000000"><%tcWebApi_get("String_Entry","6RDIPv4AddrText","s")%></font> 
             </DIV></TD>
           <TD class=tabdata> <DIV align=center>:</DIV></TD>
-          <TD><INPUT name="CEipv4Addr" maxLength=20 size=20 value="<%If TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","h") <> "N/A" then TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","s") else asp_Write("58.211.230.102") end if %>" > 
+          <TD><INPUT name="CEipv4Addr" maxLength=20 size=20 value="<%If TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","h") <> "N/A" then TcWebApi_get("ipv6rd_Entry","CEIPv4Addr","s") else asp_Write("") end if %>" > 
           </TD>
         </TR>
         <TR> 
