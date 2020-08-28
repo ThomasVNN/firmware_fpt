@@ -1,0 +1,48 @@
+#!/bin/bash
+#
+# watchdog
+#
+# Run as a cron job to keep an eye on what_to_monitor which should always
+# be running. Restart what_to_monitor and send notification as needed.
+#
+# This needs to be run as root or a user that can start system services.
+#
+# Revisions: 0.1 (20100506), 0.2 (20100507)
+
+echo "Start Foxconn Application..."
+
+#Userfs process settings
+CFGMGR=cfg_manager
+count_cfg=0
+miss_num_cfg=0
+max_miss_num_cfg=2
+
+
+while true ;
+do
+		#Foxconn add for dameon cfg_manager ,2017/11/08
+		cfg_flag=`ps |grep $CFGMGR  |grep -v grep | grep $CFGMGR -c`
+		if [ $cfg_flag -eq $count_cfg ];then
+			miss_num_cfg=`expr $miss_num_cfg + 1`
+		echo Fxcwatchdog daemon cfg_num is $miss_num_cfg
+		else
+			miss_num_cfg=0
+		fi
+	
+		if [ $miss_num_cfg -gt $max_miss_num_cfg ];then
+			echo "[FOXMSG]Warning: cfgWatchDog reboot device!!!"
+			#Foxconn alan add log when cfg_manager was killed
+			/usr/bin/sys log [FOXMSG]Warning:cfg_manager_killed
+			reboot
+		fi
+		#end
+		
+	sleep 2
+done
+
+
+
+
+
+
+

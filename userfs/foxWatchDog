@@ -1,0 +1,143 @@
+#!/bin/bash
+#
+# watchdog
+#
+# Run as a cron job to keep an eye on what_to_monitor which should always
+# be running. Restart what_to_monitor and send notification as needed.
+#
+# This needs to be run as root or a user that can start system services.
+#
+# Revisions: 0.1 (20100506), 0.2 (20100507)
+
+echo "Start Foxconn Application..."
+
+#Userfs process settings
+BOA=boa
+TR69=tr69
+DHCP=udhcpd
+TR69WATCHDOG=tr69WatchDog
+USERFSBIN=/userfs/bin
+USERSBIN=/usr/sbin
+GREP=/bin/grep
+PS=/bin/ps
+
+#Foxconn add for daemon tr69, Nash add, 2017/11/08
+count_tr69=2
+miss_num_tr69=0
+max_miss_num_tr69=3
+
+#Foxconn 2017/11/17 Bruce Add: for delay watchdog check time 
+FOXDELAY=0
+
+
+#Check CPU info
+cat /proc/cpuinfo | grep "system type"  >/dev/null 2>&1
+case "$?" in
+0)
+	echo "[FoxconnMSG] CPU check ... Pass." >> /var/log/foxconn.log
+	echo "CPU Info:" >> /var/log/foxconn.log
+	echo -e "`cat /proc/cpuinfo` \n\n" >> /var/log/foxconn.log
+	;;
+1)
+	echo "`date` [FoxconnMSG] CPU check ... Fail." >> /var/log/foxconn.log
+	;;
+esac
+
+#Check memory info
+cat /proc/meminfo | grep MemTotal >/dev/null 2>&1
+case "$?" in
+0)
+	echo "[FoxconnMSG] Memory check ... Pass." >> /var/log/foxconn.log
+	echo "Memory Info:" >> /var/log/foxconn.log
+	echo -e "`cat /proc/meminfo` \n\n" >> /var/log/foxconn.log
+	;;
+1)
+	echo "`date` [FoxconnMSG] Memory check ... Fail." >> /var/log/foxconn.log
+	;;
+esac
+
+#Check flash info
+cat /proc/mtd | grep mtd1 >/dev/null 2>&1
+case "$?" in
+0)
+	echo "[FoxconnMSG] Flash check ... Pass." >> /var/log/foxconn.log
+	echo "Flash Info:" >> /var/log/foxconn.log
+	echo -e "`cat /proc/mtd` \n\n" >> /var/log/foxconn.log
+	;;
+1)
+	echo "`date` [FoxconnMSG] Flash check ... Fail." >> /var/log/foxconn.log
+	;;
+esac
+
+while true ;
+do
+	#Check boa-asp web server status 
+	$PS -ef|$GREP -v grep|$GREP $BOA >/dev/null 2>&1
+	case "$?" in
+	0)
+		# It is running in this case so we do nothing.
+		echo "$BOA is RUNNING."
+		;;
+	1)
+		echo "$BOA is NOT RUNNING. Starting $BOA."
+		$USERFSBIN/$BOA -c /boaroot -d &
+		;;
+	esac
+	
+	#Foxconn 2017/11/17 Bruce Add: for delay watchdog check time 
+	if [ $FOXDELAY -eq 30 ]; then
+		echo "BRUCEDBG: Enter Watchdogdelay"
+		#Foxconn add for daemon tr69, Nash add start, 2017/11/08
+		tr69_flag=`ps |grep $TR69  |grep -v grep | grep $TR69 -c`
+		#tr69 + tr69watchdog = 2 is normal
+		if [ $tr69_flag -ne 2 ];then
+			miss_num_tr69=`expr $miss_num_tr69 + 1`
+			echo Fxcwatchdog daemon tr69_num is $miss_num_tr69
+		else
+			miss_num_tr69=0
+		fi
+	
+		if [ $miss_num_tr69 -gt $max_miss_num_tr69 ];then
+			$USERFSBIN/$TR69 &
+			killall $TR69WATCHDOG
+			$USERFSBIN/$TR69WATCHDOG $TR69 &
+			echo Fxcwatchdog restart $TR69
+			miss_num_tr69=0
+		fi
+		#Foxconn add for dameon tr69, Nash add start, 2017/11/08
+	
+		#Check dhcp status
+		#Foxconn alan add for check DHCP node value (20180106) 
+		$PS -ef|$GREP -v grep|$GREP $DHCP >/dev/null 2>&1
+		case "$?" in
+		0)
+			# It is running in this case so we do nothing.
+			echo "$DHCP is RUNNING."
+			;;
+		1)
+			echo "$DHCP is NOT RUNNING. Starting $DHCP."
+			DHCP_flag=`/userfs/bin/tcapi get Lan_Dhcp type`
+			if [ $DHCP_flag -eq 1 ];then
+			$USERSBIN/$DHCP &
+		else
+		echo "don't need check dhcp status"
+		fi
+			;;
+		esac
+	
+	fi
+	
+	if [ $FOXDELAY -lt 30 ];then
+		FOXDELAY=`expr $FOXDELAY + 2`
+	fi
+	#Foxconn 2017/11/17 Bruce Add: for delay watchdog check time 
+	
+	sleep 2
+done
+
+
+
+
+
+
+
